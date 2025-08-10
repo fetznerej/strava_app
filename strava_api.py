@@ -7,13 +7,15 @@ This is a temporary script file.
 
 
 import sys 
-sys.path.append('/Users/emilyfetzner/Desktop/run_app/strava_app') 
+sys.path.append("/Users/emilyfetzner/Desktop/Desktop - Emily’s MacBook Air/run_app/strava_app") 
+
+
 import pandas as pd
 from extract_data.pull_activities import main
 import numpy as np
 import folium
 import os
-
+import webbrowser
 
 all_activities = main()
 
@@ -30,33 +32,6 @@ full_activity_df = pd.json_normalize(all_activities)
 
 activity_df = full_activity_df[column_names]
 
-#### BELOW MAY BE DEFUNCT TBD
-'''
-# Create a blank DataFrame with specified column names
-activity_df = pd.DataFrame(columns=column_names)
-
- 
-for i in range (0,len(all_activities)):
-    
-    single_activ_dd =  all_activities[i]  
-    
-    try:
-        # Your list with elements in the same order as the columns
-        if single_activ_dd["has_heartrate"]:
-            data_row = [single_activ_dd[x] for x in column_names]
-        else:
-            no_hr_cols = [col for col in column_names if col != 'average_heartrate']
-        
-        # Convert the list into a DataFrame row
-        data_row_df = pd.DataFrame([data_row], columns=column_names)
-        
-        # Concatenate the two DataFrames vertically
-        activity_df = pd.concat([activity_df, data_row_df], ignore_index=True)
-    except:
-        print(i)
-        pass
-    
-'''
     
 # ----------------------------------------    
 ## Clean up
@@ -165,12 +140,8 @@ running_df['map.summary_polyline'] = running_df['map.summary_polyline'].fillna('
 # Apply the decoding function to each polyline
 running_df['decoded_map'] = running_df['map.summary_polyline'].apply(decode_poly)
 
-
     
-    
-import os
-import webbrowser
-import numpy as np
+## MAP
 
 # Function to ensure the coordinates are in the correct format
 def ensure_decoded(polyline):
@@ -178,28 +149,28 @@ def ensure_decoded(polyline):
         return decode_polyline(polyline, 5)
     return polyline
 
+# no treadmill
+outside_runs = running_df[~pd.isna(running_df['decoded_map'])]
+
 # Create a map centered at the centroid of the first route with OpenStreetMap tiles
-first_ride = running_df.iloc[0, :]
-decoded_map = ensure_decoded(first_ride['decoded_map'])
+first_run = outside_runs.iloc[0, :]
+decoded_map = ensure_decoded(first_run['decoded_map'])
 
 if decoded_map is not None:
-    # Use the original decoded coordinates without reversing
+    # Calculate the centroid of the first run
     latitudes = [coord[0] for coord in decoded_map]
     longitudes = [coord[1] for coord in decoded_map]
     centroid = [np.mean(latitudes), np.mean(longitudes)]
 
-    # Initialize the map
+    # Initialize the map with the centroid
     all_routes_map = folium.Map(location=centroid, zoom_start=13, tiles='OpenStreetMap')
 
-    # Iterate through each route in the DataFrame
-    for index, row in running_df.iterrows():
+    # Iterate through each route in the filtered DataFrame (outside_runs)
+    for index, row in outside_runs.iterrows():
         decoded_map = ensure_decoded(row['decoded_map'])
         if decoded_map is not None:
-            # Do not reverse the coordinates
-            decoded_map_corrected = decoded_map  # Keep the coordinates as they are
-
-            # Add the ride route to the map
-            folium.PolyLine(decoded_map_corrected, color="blue", weight=2.5, opacity=.45).add_to(all_routes_map)
+            # Add the route to the map
+            folium.PolyLine(decoded_map, color="blue", weight=2.5, opacity=.45).add_to(all_routes_map)
 
     # Save the map to the user's home directory
     map_file = os.path.join(os.path.expanduser("~"), "all_routes_map.html")
@@ -210,9 +181,9 @@ if decoded_map is not None:
 
     # Open the HTML file in the default web browser
     webbrowser.open(map_file)
-else:
-    print("First route is not in the expected format")
-'''
+
+
+
 from folium.plugins import HeatMap
 
 # Function to ensure the coordinates are in the correct format
